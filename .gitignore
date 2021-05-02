@@ -1,0 +1,8 @@
+#uh yeah
+node_modules
+package-lock.json
+dist
+
+# OS metadata
+.DS_Store
+Thumbs.db
