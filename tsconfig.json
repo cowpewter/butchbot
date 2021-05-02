@@ -1,6 +1,7 @@
 {
   "extends": "@tsconfig/node14/tsconfig.json",
   "compilerOptions": {
+    "esModuleInterop": true,
     "outDir": "dist",
     "preserveConstEnums": true
   },
