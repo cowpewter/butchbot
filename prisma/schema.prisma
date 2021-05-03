@@ -1,0 +1,104 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+datasource db {
+  provider = "mysql"
+  url      = env("JAWSDB_MARIA_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id          Int    @id @default(autoincrement())
+  guildId     String
+  discordId   String
+  activeCharacterId Int?
+  activeCharacter Character? @relation("active", fields: [activeCharacterId], references: [id])
+  characters Character[]
+  gmStrings  GmString[]
+  npcs       Npc[]
+
+  @@unique([discordId, guildId], name: "discordCombinedId")
+}
+
+model Character {
+  id          Int   @id @default(autoincrement())
+  userId      Int
+  isNpc       Boolean
+  nickname    String
+  fullName    String?
+  description String?
+  xp          Int
+  stats       Stat[]
+  meters      Meter[]
+  conditions  Condition[]
+  strings     CString[]
+  user        User @relation(fields: [userId], references: [id])
+  activeUser  User? @relation("active")
+  
+  @@unique([userId, nickname], name: "userIdNickname")
+}
+
+model Npc {
+  id          Int   @id @default(autoincrement())
+  userId      Int
+  nickname    String
+  fullName    String?
+  description String?
+  strings     GmString[]
+  user        User   @relation(fields: [userId], references: [id])
+
+  @@unique([userId, nickname], name: "userIdNickname")
+}
+
+model Stat {
+  id           Int     @id @default(autoincrement())
+  characterId  Int
+  name         String
+  value        Int
+  character    Character @relation(fields: [characterId], references: [id])
+  
+  @@unique([characterId, name], name: "characterStat")
+}
+
+model Meter {
+  id           Int     @id @default(autoincrement())
+  characterId  Int
+  name         String
+  value        Int
+  min          Int
+  max          Int
+  character    Character @relation(fields: [characterId], references: [id])
+
+  @@unique([characterId, name], name: "characterMeter")
+}
+
+model Condition {
+  id                 Int     @id @default(autoincrement())
+  characterId        Int
+  name               String
+  hasClearConditions Boolean
+  character          Character @relation(fields: [characterId], references: [id])
+
+  @@unique([characterId, name], name: "characterCondition")
+}
+
+model CString {
+  id       Int     @id @default(autoincrement())
+  ownerId  Int
+  heldOn   String
+  description String?
+  owner Character @relation(fields: [ownerId], references: [id])
+}
+
+model GmString {
+  id       Int     @id @default(autoincrement())
+  userId   Int
+  npcId    Int?
+  heldOn   String
+  description String?
+  user     User @relation(fields: [userId], references: [id])
+  npc      Npc? @relation(fields: [npcId], references: [id])
+}
