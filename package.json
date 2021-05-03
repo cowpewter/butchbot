@@ -6,7 +6,6 @@
   "scripts": {
     "build": "tsc && prisma generate",
     "lint": "npx prettier --write .",
-    "postinstall": "npm run build",
     "start": "npm run serve",
     "serve": "node dist/index.js",
     "prepare": "husky install"
@@ -47,6 +46,6 @@
     "bufferutil": "^4.0.3"
   },
   "engines": {
-    "node": ">=10.0.0"
+    "node": "^14.0.0"
   }
 }
