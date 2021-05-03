@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import Eris from "eris";
 
+import char from "./char";
 import roll from "./roll";
 
 export interface Command {
@@ -10,6 +11,6 @@ export interface Command {
   subCommands?: Command[];
 }
 
-const allCommands: Command[] = [roll];
+const allCommands: Command[] = [char, roll];
 
 export default allCommands;
