@@ -1,21 +1,49 @@
 import { Character, Prisma, PrismaClient } from "@prisma/client";
-import Eris from "eris";
+import Eris, { Embed as ErisEmbed } from "eris";
+import Embed from "../embed";
 
-export const formatCharacter = (char: Character): string => {
-  return `
-Your currently selected character is: "${
-    char.fullName || "Please SetMyFullName"
-  }" also known as "${char.nickname}".
+export const formatCharacter = async (
+  char: Character,
+  prisma: PrismaClient
+): Promise<ErisEmbed> => {
+  const embed = new Embed();
+  embed.setTitle(char.fullName || char.nickname);
+  if (char.description) {
+    embed.setDescription(char.description);
+  }
+  if (char.image) {
+    embed.setImage({ url: char.image, width: 250 });
+  }
 
-Someday, this will hopefully be formatted like a character sheet?
+  // Get and display meters
+  const meters = await prisma.meter.findMany({
+    where: {
+      character: char,
+    },
+  });
 
-Status Dump:
-<pre>
-${{
-  ...char,
-}}
-</pre>
-    `;
+  meters.forEach((meter) => {
+    embed.addField({
+      name: meter.name,
+      value: `${meter.value}/${meter.max}`,
+    });
+  });
+
+  // Get and display stats
+  const stats = await prisma.meter.findMany({
+    where: {
+      character: char,
+    },
+  });
+
+  stats.forEach((stat) => {
+    embed.addField({
+      name: stat.name,
+      value: stat.value > 0 ? `+${stat.value}` : `${stat.value}`,
+    });
+  });
+
+  return embed.getEris();
 };
 
 export function isOfType<T>(arg: any, prop?: string): arg is T {

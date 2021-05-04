@@ -1,4 +1,4 @@
-import { Character, Prisma, PrismaClient } from "@prisma/client";
+import { Character, PrismaClient } from "@prisma/client";
 import { Command } from "./";
 import {
   isOfType,
@@ -6,6 +6,8 @@ import {
   generateCharacterById,
   generateUserFromMsg,
 } from "./utils";
+
+const ERROR_NOT_SUPPORTED_IN_DMS = `Sorry, this command isn't supported in DMs. Please use a channel.`;
 
 const charNew: Command = {
   label: "new",
@@ -15,7 +17,7 @@ const charNew: Command = {
     fullDescription: `
 Creates a brand new character record, and saves it to your account.
 
-Usage \`$char new nickname\` where \`nickname\` is replaced by a shorthand name you want to use to refer to this character.
+Usage \`$char new nickname\` where \`nickname\` is replaced by a shorthand name you want to use to refer to this character. (No spaces please!)
 
 You'll have the opportunity to set the character's full name and description later.
     `,
@@ -23,14 +25,14 @@ You'll have the opportunity to set the character's full name and description lat
   },
   generator: (prisma: PrismaClient) => async (msg, args) => {
     if (!msg.guildID) {
-      return `Sorry, this command isn't supported in DMs`;
+      return ERROR_NOT_SUPPORTED_IN_DMS;
     }
     if (args.length < 1) {
-      return `Sorry, this command requires a nickname to create a new character.`;
+      return `Sorry, this command requires a nickname to create a new character. Nicknames cannot contain spaces.`;
     }
     const nickname = args[0].trim().toLowerCase();
-    if (!nickname) {
-      return `Sorry, this command requires a nickname to create a new character. Nicknames should be all lowercase.`;
+    if (!nickname || nickname.indexOf(" ") !== -1) {
+      return `Sorry, this command requires a nickname to create a new character. Nicknames cannot contain spaces.`;
     }
 
     const user = await generateUserFromMsg(prisma)(msg);
@@ -75,19 +77,21 @@ You'll have the opportunity to set the character's full name and description lat
     return `
 New character, nicknamed "${nickname}," created and set as currently selected character.
 
+See your character sheet with \`$char\`.
+
 Set up your new character's properties with \`$char set name value\`.
 
-Someday, choose a Playbook with \`$char set playbook name\` to automatically set up default Moves.
+~Choose a Playbook with \`$char set playbook name\` to automatically set up default Moves.~
 
-Set up your new character's stats with \`$stat set name value\`.
+~Set up your new character's stats with \`$stat set name value\`.~
 
-Set up any meters required for your new character with \`$meter create name min max currentValue\`.
+~Set up any meters required for your new character with \`$meter create name min max currentValue\`.~
 
-Inflict a Condition on your character with \`$cond create name hasSpecialConditions description\`.
+~Inflict a Condition on your character with \`$cond create name hasSpecialConditions description\`.~
 
-Stagger your character with \`$stagger\`.
+~Stagger your character with \`$stagger\`.~
 
-Someday, set up Moves for your character!
+~Set up Moves for your character with \`$move add name\`~
     `;
   },
 };
@@ -100,13 +104,17 @@ const charSet: Command = {
     fullDescription: `
 Command to set properties on your character. This will overwrite the existing value.
 
-Available properties: fullName, description, xp
+Available properties:
+ - fullName (string)
+ - description (string), 
+ - xp (number)
+ - image (url)
     `,
     guildOnly: true,
   },
   generator: (prisma: PrismaClient) => async (msg, args) => {
     if (!msg.guildID) {
-      return `Sorry, this command isn't supported in DMs`;
+      return ERROR_NOT_SUPPORTED_IN_DMS;
     }
 
     const user = await generateUserFromMsg(prisma)(msg);
@@ -140,7 +148,13 @@ Available properties: fullName, description, xp
       },
     });
 
-    return formatCharacter(updated);
+    const embed = await formatCharacter(updated, prisma);
+    msg.channel.client.createMessage(msg.channel.id, {
+      content: `Updated ${updated.nickname}.`,
+      embed,
+    });
+
+    return "";
   },
 };
 
@@ -155,6 +169,9 @@ Command for selecting the current active character, by nickname. To see all char
     guildOnly: true,
   },
   generator: (prisma: PrismaClient) => async (msg, args) => {
+    if (!msg.guildID) {
+      return ERROR_NOT_SUPPORTED_IN_DMS;
+    }
     const user = await generateUserFromMsg(prisma)(msg);
 
     if (args.length < 1) {
@@ -184,11 +201,13 @@ Command for selecting the current active character, by nickname. To see all char
       },
     });
 
-    return `
-Character ${nickname} selected.
+    const embed = await formatCharacter(char, prisma);
+    msg.channel.client.createMessage(msg.channel.id, {
+      content: `Character ${char.nickname} is now selected.`,
+      embed,
+    });
 
-${formatCharacter(char)}
-    `;
+    return "";
   },
 };
 
@@ -202,6 +221,9 @@ Lists your created characters.
     guildOnly: true,
   },
   generator: (prisma: PrismaClient) => async (msg, _) => {
+    if (!msg.guildID) {
+      return ERROR_NOT_SUPPORTED_IN_DMS;
+    }
     const user = await generateUserFromMsg(prisma)(msg);
 
     const characters = await prisma.character.findMany({
@@ -231,7 +253,7 @@ Command for creating, listing, and selecting characters. See subcommands (new, l
   subCommands: [charNew, charList, charSelect, charSet],
   generator: (prisma: PrismaClient) => async (msg, _) => {
     if (!msg.guildID) {
-      return `Sorry, this command isn't supported in DMs`;
+      return ERROR_NOT_SUPPORTED_IN_DMS;
     }
 
     const user = await generateUserFromMsg(prisma)(msg);
@@ -239,17 +261,20 @@ Command for creating, listing, and selecting characters. See subcommands (new, l
       ? await generateCharacterById(prisma)(user.activeCharacterId)
       : null;
 
-    const please =
-      "Please use one of `$char list`, `$char new`, `$char select`, `$char set`";
-
     if (!char) {
       return `
 You currently have no character selected.
-${please}
+Please use one of \`$char list\`, \`$char new\`, \`$char select\`, \`$char set\`."
       `;
     }
 
-    return formatCharacter(char);
+    const embed = await formatCharacter(char, prisma);
+    msg.channel.client.createMessage(msg.channel.id, {
+      content: `Currently Selected Character is ${char.nickname}`,
+      embed,
+    });
+
+    return "";
   },
 };
 
